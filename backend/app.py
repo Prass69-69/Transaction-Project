@@ -76,6 +76,10 @@ def calculate_zscore_by_type(df, threshold=3):
         else:
             normal_amounts.append(amount)
 
+        status_value = str(row.get('status', 'successful')).lower()
+        if status_value == '' or pd.isna(status_value):
+            status_value = 'successful'
+
         results.append({
             'transaction_id': str(row['transaction_id']),
             'date': str(row['date']),
@@ -83,7 +87,8 @@ def calculate_zscore_by_type(df, threshold=3):
             'transaction_type': transaction_type,
             'zscore': float(zscore) if not np.isnan(zscore) else 0,
             'is_flagged': is_flagged,
-            'reason': reason if is_flagged else 'Normal transaction'
+            'reason': reason if is_flagged else 'Normal transaction',
+            'status': status_value
         })
 
     summary['flagged_percentage'] = (summary['flagged_count'] / summary['total_transactions'] * 100) if summary['total_transactions'] > 0 else 0
@@ -116,6 +121,57 @@ def analyze_transactions():
             return jsonify({'error': f'CSV must contain columns: {", ".join(required_columns)}'}), 400
 
         df['transaction_type'] = df['transaction_type'].str.strip()
+
+        if 'status' in df.columns:
+            df['status'] = df['status'].str.strip().str.lower()
+            df['status'] = df['status'].replace('', 'successful')
+            valid_statuses = df['status'].isin(['successful', 'unsuccessful'])
+            if not valid_statuses.all():
+                return jsonify({'error': 'status must be either "successful" or "unsuccessful"'}), 400
+        else:
+            df['status'] = 'successful'
+
+        valid_types = df['transaction_type'].isin(['Incoming', 'Outgoing'])
+        if not valid_types.all():
+            return jsonify({'error': 'transaction_type must be either "Incoming" or "Outgoing"'}), 400
+
+        transactions, summary = calculate_zscore_by_type(df, threshold)
+
+        return jsonify({
+            'transactions': transactions,
+            'summary': summary
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/manual-entry', methods=['POST'])
+def manual_entry():
+    try:
+        data = request.get_json()
+
+        if not data or 'transactions' not in data:
+            return jsonify({'error': 'No transaction data provided'}), 400
+
+        transactions_data = data['transactions']
+        threshold = float(data.get('threshold', 3))
+
+        if not transactions_data:
+            return jsonify({'error': 'At least one transaction is required'}), 400
+
+        df = pd.DataFrame(transactions_data)
+
+        required_columns = ['transaction_id', 'date', 'amount', 'transaction_type']
+        if not all(col in df.columns for col in required_columns):
+            return jsonify({'error': f'Transactions must contain: {", ".join(required_columns)}'}), 400
+
+        df['transaction_type'] = df['transaction_type'].str.strip()
+
+        if 'status' in df.columns:
+            df['status'] = df['status'].str.strip().str.lower()
+            df['status'] = df['status'].replace('', 'successful')
+        else:
+            df['status'] = 'successful'
 
         valid_types = df['transaction_type'].isin(['Incoming', 'Outgoing'])
         if not valid_types.all():

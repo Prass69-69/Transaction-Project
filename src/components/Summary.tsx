@@ -21,6 +21,7 @@ export default function Summary({ transactions }: SummaryProps) {
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   const months = [
     { value: '01', label: 'January' },
@@ -44,10 +45,17 @@ export default function Summary({ transactions }: SummaryProps) {
       const month = parts[1];
       if (selectedYear !== 'all' && year !== selectedYear) return false;
       if (selectedMonth !== 'all' && month !== selectedMonth) return false;
-      if (selectedType !== 'all' && t.transaction_type !== selectedType) return false;
+      if (selectedType !== 'all') {
+        if (selectedType === 'unsuccessful') {
+          if (t.status !== 'unsuccessful') return false;
+        } else {
+          if (t.transaction_type !== selectedType) return false;
+        }
+      }
+      if (selectedStatus !== 'all' && t.status !== selectedStatus) return false;
       return true;
     });
-  }, [flagged, selectedYear, selectedMonth, selectedType]);
+  }, [flagged, selectedYear, selectedMonth, selectedType, selectedStatus]);
 
   const totalIncoming = useMemo(
     () => filtered.filter((t) => t.transaction_type === 'Incoming').reduce((s, t) => s + t.amount, 0),
@@ -80,7 +88,7 @@ export default function Summary({ transactions }: SummaryProps) {
           </div>
           <h2 className="text-xl font-bold text-gray-800">Filter Flagged Transactions</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Year</label>
             <select
@@ -117,6 +125,19 @@ export default function Summary({ transactions }: SummaryProps) {
               <option value="all">All Types</option>
               <option value="Incoming">Incoming</option>
               <option value="Outgoing">Outgoing</option>
+              <option value="unsuccessful">Unsuccessful</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Status</label>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent text-sm text-gray-700 bg-white"
+            >
+              <option value="all">All Statuses</option>
+              <option value="successful">Successful</option>
+              <option value="unsuccessful">Unsuccessful</option>
             </select>
           </div>
         </div>
@@ -183,6 +204,7 @@ export default function Summary({ transactions }: SummaryProps) {
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Type</th>
                   <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Amount</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Z-Score</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Reason</th>
                 </tr>
@@ -199,6 +221,13 @@ export default function Summary({ transactions }: SummaryProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
                       ₹{t.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                        t.status === 'unsuccessful' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {t.status || 'successful'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">

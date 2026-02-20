@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { BarChart3, AlertTriangle } from 'lucide-react';
+import { BarChart3, AlertTriangle, Upload, PenTool } from 'lucide-react';
 import FileUpload from './components/FileUpload';
+import ManualEntry from './components/ManualEntry';
 import SummaryCards from './components/SummaryCards';
 import TransactionTable from './components/TransactionTable';
 import Charts from './components/Charts';
@@ -8,12 +9,14 @@ import Summary from './components/Summary';
 import { AnalysisResult } from './types';
 
 type Page = 'dashboard' | 'summary';
+type EntryMode = 'upload' | 'manual';
 
 function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState<Page>('dashboard');
+  const [entryMode, setEntryMode] = useState<EntryMode>('upload');
 
   const handleFileUpload = async (file: File, threshold: number) => {
     setIsLoading(true);
@@ -27,6 +30,42 @@ function App() {
       const response = await fetch('http://localhost:5000/api/analyze', {
         method: 'POST',
         body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to analyze transactions');
+      }
+
+      const data: AnalysisResult = await response.json();
+      setResult(data);
+      setPage('dashboard');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleManualEntry = async (transactions: any[], threshold: number) => {
+    setIsLoading(true);
+    setError(null);
+
+    const processedTransactions = transactions.map(t => ({
+      ...t,
+      amount: parseFloat(t.amount)
+    }));
+
+    try {
+      const response = await fetch('http://localhost:5000/api/manual-entry', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactions: processedTransactions,
+          threshold
+        }),
       });
 
       if (!response.ok) {
@@ -95,7 +134,38 @@ function App() {
           </div>
         </div>
 
-        <FileUpload onUpload={handleFileUpload} isLoading={isLoading} />
+        <div className="mb-8">
+          <nav className="flex items-center bg-white rounded-xl shadow-lg border-2 border-gray-100 p-1 gap-1 mb-8">
+            <button
+              onClick={() => setEntryMode('upload')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all flex-1 justify-center ${
+                entryMode === 'upload'
+                  ? 'bg-blue-500 text-white shadow'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <Upload size={18} />
+              CSV Upload
+            </button>
+            <button
+              onClick={() => setEntryMode('manual')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all flex-1 justify-center ${
+                entryMode === 'manual'
+                  ? 'bg-green-500 text-white shadow'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <PenTool size={18} />
+              Manual Entry
+            </button>
+          </nav>
+
+          {entryMode === 'upload' ? (
+            <FileUpload onUpload={handleFileUpload} isLoading={isLoading} />
+          ) : (
+            <ManualEntry onSubmit={handleManualEntry} isLoading={isLoading} />
+          )}
+        </div>
 
         {error && (
           <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-8">

@@ -30,10 +30,13 @@ export default function TransactionTable({ transactions }: TransactionTableProps
                 Amount
               </th>
               <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
+                Transaction Status
+              </th>
+              <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Z-Score
               </th>
               <th className="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
-                Status
+                Anomaly Status
               </th>
               <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
                 Reason
@@ -67,6 +70,17 @@ export default function TransactionTable({ transactions }: TransactionTableProps
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
                   ₹{transaction.amount.toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                      transaction.status === 'unsuccessful'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-green-100 text-green-700'
+                    }`}
+                  >
+                    {transaction.status || 'successful'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <span
